@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>HistoryDIrToolClass</class>
+ <widget class="QDialog" name="HistoryDIrToolClass">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>600</width>
+    <height>400</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>HistoryDIrTool</string>
+  </property>
+  <widget class="QPushButton" name="btnOpenPath">
+   <property name="geometry">
+    <rect>
+     <x>50</x>
+     <y>80</y>
+     <width>75</width>
+     <height>23</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>打开路径</string>
+   </property>
+  </widget>
+  <widget class="QSpinBox" name="spinBoxDelCount">
+   <property name="geometry">
+    <rect>
+     <x>420</x>
+     <y>80</y>
+     <width>42</width>
+     <height>22</height>
+    </rect>
+   </property>
+  </widget>
+  <widget class="QLabel" name="labelDelCount">
+   <property name="geometry">
+    <rect>
+     <x>350</x>
+     <y>80</y>
+     <width>54</width>
+     <height>12</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>保留条数</string>
+   </property>
+  </widget>
+  <widget class="QTextEdit" name="textLog">
+   <property name="geometry">
+    <rect>
+     <x>50</x>
+     <y>130</y>
+     <width>461</width>
+     <height>171</height>
+    </rect>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="btnParse">
+   <property name="geometry">
+    <rect>
+     <x>110</x>
+     <y>330</y>
+     <width>75</width>
+     <height>23</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>目录分析</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="btnDel">
+   <property name="geometry">
+    <rect>
+     <x>370</x>
+     <y>330</y>
+     <width>75</width>
+     <height>23</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>删除</string>
+   </property>
+  </widget>
+ </widget>
+ <layoutdefault spacing="6" margin="11"/>
+ <resources>
+  <include location="HistoryDIrTool.qrc"/>
+ </resources>
+ <connections>
+  <connection>
+   <sender>btnOpenPath</sender>
+   <signal>clicked()</signal>
+   <receiver>HistoryDIrToolClass</receiver>
+   <slot>openDirPath()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>105</x>
+     <y>81</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>168</x>
+     <y>35</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>btnParse</sender>
+   <signal>clicked()</signal>
+   <receiver>HistoryDIrToolClass</receiver>
+   <slot>dirParse()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>171</x>
+     <y>342</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>226</x>
+     <y>335</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>btnDel</sender>
+   <signal>clicked()</signal>
+   <receiver>HistoryDIrToolClass</receiver>
+   <slot>delDir()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>426</x>
+     <y>342</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>505</x>
+     <y>345</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
+ <slots>
+  <slot>openDirPath()</slot>
+  <slot>dirParse()</slot>
+  <slot>delDir()</slot>
+ </slots>
+</ui>
