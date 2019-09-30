@@ -1,4 +1,5 @@
 <RCC>
-    <qresource prefix="HistoryDIrTool">
+    <qresource prefix="/HistoryDIrTool">
+        <file>Resources/tools.ico</file>
     </qresource>
 </RCC>

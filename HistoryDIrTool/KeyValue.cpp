@@ -12,5 +12,5 @@ CKeyValue::~CKeyValue()
 
 bool CKeyValue::less_first(const CKeyValue& m1, const CKeyValue& m2)
 {
-	return m1.first > m2.first;
+	return m1.first < m2.first;
 }
