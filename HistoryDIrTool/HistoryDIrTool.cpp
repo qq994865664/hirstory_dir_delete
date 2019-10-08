@@ -100,12 +100,17 @@ void HistoryDIrTool::openDirPath()
 
 	SplitLine();
 	ui.textLog->append(u8"打开目录: " + qstr_dir_path);
-	str_dir_path = QStr2Str(qstr_dir_path);
+
+	char szPath[MAX_PATH] = { 0 };
+	QByteArray ba = qstr_dir_path.toLocal8Bit();
+	memcpy(szPath, ba.data(), ba.size() + 1);
+
+	str_dir_path = szPath;
 }
 
 void HistoryDIrTool::DirectoryParse()
 {
-	ui.textLog->append(QString(u8"找到下面路劲"));
+	ui.textLog->append(QString(u8"找到下面路径"));
 	SplitLineSingle();
 }
 
@@ -212,7 +217,6 @@ void HistoryDIrTool::dirParse()
 	ui.textLog->append(u8"正在努力解析目录，请耐心等待...");
 	//启动或重启定时器, 并设置定时器时间：毫秒
 	m_timer->start(5000);
-	
 	thrd_scan = boost::thread(boost::bind(&HistoryDIrTool::RunScanDir, this));
 	/*thrd_scan.join();*/
 }
@@ -222,6 +226,7 @@ void HistoryDIrTool::delDir()
 	if (!isDeleteComplete)
 	{
 		ui.textLog->append(u8"正在删除目录，请耐心等待...");
+		ui.textLog->append(u8"在删除操作完成前，请勿关闭程序，请耐心等待...");
 		//m_timer->start(200);
 		thrd_del = boost::thread(boost::bind(&HistoryDIrTool::RunDelete, this));
 	}
@@ -252,27 +257,36 @@ void HistoryDIrTool::RunDelete()
 	{
 		if (!vct_str_dir_path_delete.empty())
 		{
-			for (int iDelete = 0; iDelete < vct_str_dir_path_delete.size(); iDelete++)
+			for (long iDelete = 0; iDelete < vct_str_dir_path_delete.size(); iDelete++)
 			{
 				string str_path_delete = vct_str_dir_path_delete[iDelete].c_str();
 				if (str_path_delete.length() >= MAX_PATH)
 				{
 					continue;
 				}
-				try
+				//try
 				{
 					boost::filesystem::path delPath(str_path_delete.c_str());
 					bool isExists = boost::filesystem::exists(delPath);
 					if (!isExists)
 						continue;
-					boost::filesystem::remove_all(delPath);
+
+					boost::system::error_code ec;
+					boost::filesystem::remove_all(delPath,ec);
+					boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+
+					char c[MAX_PATH] = { 0 };
+					string str_result = ec.message();
+					sprintf(c, "%s", str_result.c_str());
+					ui.textLog->append(QString::fromLocal8Bit(c));
+					ui.textLog->update();
 				}
-				catch (exception* e)
-				{
-					ui.textLog->append(u8"删除文件失败: " + QString(str_path_delete.c_str()));
-					ui.textLog->append("Error Code");
-					ui.textLog->append(e->what());
-				}
+				//catch (exception* e)
+				//{
+				//	ui.textLog->append(u8"删除文件失败: " + QString(str_path_delete.c_str()));
+				//	ui.textLog->append("Error Code");
+				//	ui.textLog->append(e->what());
+				//}
 			}
 			vct_str_dir_path_delete.clear();
 			vct_str_dir_path_temp.clear();
@@ -307,13 +321,13 @@ void HistoryDIrTool::onTimeOut()
 		ui.textLog->append(u8"以下目录将被删除:");
 		for (int iDelete = 0; iDelete < vct_str_dir_path_delete.size(); iDelete++)
 		{
-			ui.textLog->append(QString(vct_str_dir_path_delete[iDelete].c_str()));
+			ui.textLog->append(QString::fromLocal8Bit(vct_str_dir_path_delete[iDelete].c_str()));
 		}
 		SplitLineSingle();
 		ui.textLog->append(u8"以下目录将被保留:");
 		for (int iRemain = 0; iRemain < vct_str_dir_path_remain.size(); iRemain++)
 		{
-			ui.textLog->append(QString(vct_str_dir_path_remain[iRemain].c_str()));
+			ui.textLog->append(QString::fromLocal8Bit(vct_str_dir_path_remain[iRemain].c_str()));
 		}
 	}
 	else

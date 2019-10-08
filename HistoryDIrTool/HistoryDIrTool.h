@@ -22,24 +22,17 @@ public:
 	long long StandardToStamp(char* str_time);
 	void SplitLine();
 	void SplitLineSingle();
-
 	void InitTimer();
-	
-
-private slots:
-	void openDirPath();
-
 	void DirectoryParse();
 	void ScanDirectory(const path& full_path);
-
-	void dirParse();
-	void delDir();
-
 	void RunScanDir();
 	void RunDelete();
 
+private slots:
+	void openDirPath();
+	void dirParse();
+	void delDir();
 	void onTimeOut();
-
 
 private:
 	QTimer* m_timer;
