@@ -5,6 +5,7 @@
 #include <string.h>
 #include "KeyValue.h"
 #include <boost/filesystem.hpp>
+#include <QTime>
 
 using namespace boost::filesystem;
 
@@ -16,21 +17,32 @@ class HistoryDIrTool : public QDialog
 
 public:
 	HistoryDIrTool(QWidget *parent = Q_NULLPTR);
+	~HistoryDIrTool();
 	string QStr2Str(QString qstr);
 	long long StandardToStamp(char* str_time);
 	void SplitLine();
 	void SplitLineSingle();
 
+	void InitTimer();
+	
+
 private slots:
 	void openDirPath();
 
 	void DirectoryParse();
-	void PrintAllFile(const path& full_path);
+	void ScanDirectory(const path& full_path);
 
 	void dirParse();
 	void delDir();
 
+	void RunScanDir();
+	void RunDelete();
+
+	void onTimeOut();
+
+
 private:
+	QTimer* m_timer;
 	QString qstr_dir_path;
 	string str_dir_path;
 

@@ -29,7 +29,7 @@
      <item>
       <widget class="QPushButton" name="btnParse">
        <property name="text">
-        <string>分析目录</string>
+        <string>解析目录</string>
        </property>
       </widget>
      </item>

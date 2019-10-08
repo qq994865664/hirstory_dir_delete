@@ -4,15 +4,20 @@
 #include <QDebug>
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include "KeyValue.h"
-
+#include <windows.h>
 #include <boost/filesystem.hpp>
+#include <boost/thread/thread.hpp> 
+#include <QTimer>
 
 using namespace boost::filesystem;
 
 #pragma execution_character_set("utf-8")
 
-static bool isParse = false;
+static bool isParseComplete = false;
+static bool isDeleteComplete = false;
 static bool isHistory = false;
+static boost::thread thrd_scan;
+static boost::thread thrd_del;
 
 HistoryDIrTool::HistoryDIrTool(QWidget* parent)
 	: QDialog(parent)
@@ -21,6 +26,14 @@ HistoryDIrTool::HistoryDIrTool(QWidget* parent)
 	vct_str_dir_path_delete.clear();
 	vct_str_dir_path_temp.clear();
 	vct_str_dir_path_remain.clear();
+	m_timer = NULL;
+	InitTimer();
+}
+
+HistoryDIrTool::~HistoryDIrTool()
+{
+	if (m_timer)
+		delete m_timer;
 }
 
 string HistoryDIrTool::QStr2Str(QString qstr)
@@ -62,28 +75,41 @@ void HistoryDIrTool::SplitLineSingle()
 	ui.textLog->append("-------------------------------------");
 }
 
+void HistoryDIrTool::InitTimer()
+{
+	if (NULL == m_timer)
+		m_timer = new QTimer;
+	//设置定时器是否为单次触发。默认为 false 多次触发
+	m_timer->setSingleShot(false);
+
+	//定时器触发信号槽
+	QObject::connect(m_timer, SIGNAL(timeout()), this, SLOT(onTimeOut()));
+}
+
 void HistoryDIrTool::openDirPath()
 {
-	isParse = false;
+	isParseComplete = false;
 	vct_str_dir_path_temp.clear();
 	vct_str_dir_path_delete.clear();
 	vct_str_dir_path_remain.clear();
 
-	qstr_dir_path = QFileDialog::getExistingDirectory(NULL, "Select Directory", ".");
-	SplitLine();
-	ui.textLog->append("Open path: " + qstr_dir_path);
-	str_dir_path = QStr2Str(qstr_dir_path);
+	qstr_dir_path = QFileDialog::getExistingDirectory(NULL, u8"选择目录", ".");
 
-	return;
+	if (qstr_dir_path.isEmpty())
+		return;
+
+	SplitLine();
+	ui.textLog->append(u8"打开目录: " + qstr_dir_path);
+	str_dir_path = QStr2Str(qstr_dir_path);
 }
 
 void HistoryDIrTool::DirectoryParse()
 {
-	ui.textLog->append("Found the path below");
+	ui.textLog->append(QString(u8"找到下面路劲"));
 	SplitLineSingle();
 }
 
-void HistoryDIrTool::PrintAllFile(const path& full_path)
+void HistoryDIrTool::ScanDirectory(const path& full_path)
 {
 	if (boost::filesystem::exists(full_path))
 	{
@@ -120,7 +146,7 @@ void HistoryDIrTool::PrintAllFile(const path& full_path)
 								}
 								else
 								{
-									ui.textLog->append("Parse directory error");
+									//ui.textLog->append("Parse directory error");
 									continue;;
 								}
 								CKeyValue keyvalue(timeStamp, str_path);
@@ -158,8 +184,7 @@ void HistoryDIrTool::PrintAllFile(const path& full_path)
 							isHistory = true;
 						}
 						QString qstr = item_begin->path().string().c_str();
-						qDebug() << qstr << endl;
-						PrintAllFile(item_begin->path());
+						ScanDirectory(item_begin->path());
 					}
 				}
 
@@ -171,72 +196,128 @@ void HistoryDIrTool::PrintAllFile(const path& full_path)
 void HistoryDIrTool::dirParse()
 {
 	ui.textLog->clear();
-
 	if (str_dir_path.empty())
 	{
 		SplitLine();
-		ui.textLog->append("Please open directory path first");
+		ui.textLog->append(u8"请先打开目标路径");
 		return;
 	}
 
 	if (ui.spinBoxDelCount->value() == 0)
 	{
 		SplitLine();
-		ui.textLog->append("Please select remain num first.");
+		ui.textLog->append(u8"请先选择保留条数");
 		return;
 	}
-
-	vct_str_dir_path_remain.clear();
-	vct_str_dir_path_delete.clear();
-
-	boost::filesystem::path myPath(str_dir_path);
-	PrintAllFile(myPath);
-
-	SplitLine();
-	ui.textLog->append("Directory will be delete below:");
-	for (int iDelete = 0; iDelete < vct_str_dir_path_delete.size(); iDelete++)
-	{
-		ui.textLog->append(QString(vct_str_dir_path_delete[iDelete].c_str()));
-	}
-	SplitLineSingle();
-	ui.textLog->append("Remain below:");
-	for (int iRemain = 0; iRemain < vct_str_dir_path_remain.size(); iRemain++)
-	{
-		ui.textLog->append(QString(vct_str_dir_path_remain[iRemain].c_str()));
-	}
-
-	isParse = true;
+	ui.textLog->append(u8"正在努力解析目录，请耐心等待...");
+	//启动或重启定时器, 并设置定时器时间：毫秒
+	m_timer->start(5000);
+	
+	thrd_scan = boost::thread(boost::bind(&HistoryDIrTool::RunScanDir, this));
+	/*thrd_scan.join();*/
 }
 
 void HistoryDIrTool::delDir()
 {
-	if (isParse)
+	if (!isDeleteComplete)
+	{
+		ui.textLog->append(u8"正在删除目录，请耐心等待...");
+		//m_timer->start(200);
+		thrd_del = boost::thread(boost::bind(&HistoryDIrTool::RunDelete, this));
+	}
+	else
+	{
+		SplitLine();
+		ui.textLog->append(u8"请先进行解析目录");
+	}
+	
+	//thrd_del.join();
+}
+
+void HistoryDIrTool::RunScanDir()
+{
+	vct_str_dir_path_remain.clear();
+	vct_str_dir_path_delete.clear();
+	isParseComplete = false;
+	isDeleteComplete = true;
+	boost::filesystem::path myPath(str_dir_path);
+	ScanDirectory(myPath);
+	isDeleteComplete = false;
+	isParseComplete = true;
+}
+
+void HistoryDIrTool::RunDelete()
+{
+	if (!isDeleteComplete)
 	{
 		if (!vct_str_dir_path_delete.empty())
 		{
-			SplitLine();
 			for (int iDelete = 0; iDelete < vct_str_dir_path_delete.size(); iDelete++)
 			{
-				char c[256] = { 0 };
-				sprintf(c, "Delete: %s.", vct_str_dir_path_delete[iDelete].c_str());
-				ui.textLog->append(QString(c));
-				boost::filesystem::path delPath(vct_str_dir_path_delete[iDelete].c_str());
-				bool isExists = boost::filesystem::exists(delPath);
-				if (!isExists)
+				string str_path_delete = vct_str_dir_path_delete[iDelete].c_str();
+				if (str_path_delete.length() >= MAX_PATH)
+				{
 					continue;
-				boost::filesystem::remove_all(delPath);
+				}
+				try
+				{
+					boost::filesystem::path delPath(str_path_delete.c_str());
+					bool isExists = boost::filesystem::exists(delPath);
+					if (!isExists)
+						continue;
+					boost::filesystem::remove_all(delPath);
+				}
+				catch (exception* e)
+				{
+					ui.textLog->append(u8"删除文件失败: " + QString(str_path_delete.c_str()));
+					ui.textLog->append("Error Code");
+					ui.textLog->append(e->what());
+				}
 			}
 			vct_str_dir_path_delete.clear();
 			vct_str_dir_path_temp.clear();
 			vct_str_dir_path_remain.clear();
 			str_dir_path.clear();
 		}
+		isDeleteComplete = true;
+		SplitLine();
+		ui.textLog->append(QString(u8"删除操作已完成."));
+	}
+}
 
+void HistoryDIrTool::onTimeOut()
+{
+	if (isParseComplete)
+	{
+		isParseComplete = false;
+		//判断定时器是否运行
+		if (m_timer->isActive())
+			m_timer->stop();   //停止定时器
+
+		if (vct_str_dir_path_delete.empty())
+		{
+			SplitLine();
+			char c[256] = { 0 };
+			sprintf(c, u8"当前保留条数: %d 情况下,没有匹配到要删除的目录.", ui.spinBoxDelCount->value());
+			ui.textLog->append(c);
+			return;
+		}
+		SplitLine();
+		ui.textLog->append(u8"目录分析完成.");
+		ui.textLog->append(u8"以下目录将被删除:");
+		for (int iDelete = 0; iDelete < vct_str_dir_path_delete.size(); iDelete++)
+		{
+			ui.textLog->append(QString(vct_str_dir_path_delete[iDelete].c_str()));
+		}
+		SplitLineSingle();
+		ui.textLog->append(u8"以下目录将被保留:");
+		for (int iRemain = 0; iRemain < vct_str_dir_path_remain.size(); iRemain++)
+		{
+			ui.textLog->append(QString(vct_str_dir_path_remain[iRemain].c_str()));
+		}
 	}
 	else
 	{
-		SplitLine();
-		ui.textLog->append("Please parse directory first.");
+		ui.textLog->append(u8"正在努力解析目录，请耐心等待...");
 	}
-	isParse = false;
 }
