@@ -18,6 +18,8 @@ static bool isDeleteComplete = false;
 static bool isHistory = false;
 static boost::thread thrd_scan;
 static boost::thread thrd_del;
+static bool isRunParseThread = false;
+static bool isRunDeleteThread = false;
 
 HistoryDIrTool::HistoryDIrTool(QWidget* parent)
 	: QDialog(parent)
@@ -200,6 +202,9 @@ void HistoryDIrTool::ScanDirectory(const path& full_path)
 
 void HistoryDIrTool::dirParse()
 {
+	if (isRunParseThread)
+		return;
+
 	ui.textLog->clear();
 	if (str_dir_path.empty())
 	{
@@ -223,8 +228,12 @@ void HistoryDIrTool::dirParse()
 
 void HistoryDIrTool::delDir()
 {
+	if (isRunDeleteThread)
+		return;
+
 	if (!isDeleteComplete)
 	{
+		ui.textLog->clear();
 		ui.textLog->append(u8"正在删除目录，请耐心等待...");
 		ui.textLog->append(u8"在删除操作完成前，请勿关闭程序，请耐心等待...");
 		//m_timer->start(200);
@@ -235,12 +244,12 @@ void HistoryDIrTool::delDir()
 		SplitLine();
 		ui.textLog->append(u8"请先进行解析目录");
 	}
-	
-	//thrd_del.join();
 }
 
 void HistoryDIrTool::RunScanDir()
 {
+	isRunParseThread = true;
+
 	vct_str_dir_path_remain.clear();
 	vct_str_dir_path_delete.clear();
 	isParseComplete = false;
@@ -249,10 +258,14 @@ void HistoryDIrTool::RunScanDir()
 	ScanDirectory(myPath);
 	isDeleteComplete = false;
 	isParseComplete = true;
+
+	isRunParseThread = false;
 }
 
 void HistoryDIrTool::RunDelete()
 {
+	isRunDeleteThread = true;
+
 	if (!isDeleteComplete)
 	{
 		if (!vct_str_dir_path_delete.empty())
@@ -275,13 +288,13 @@ void HistoryDIrTool::RunDelete()
 					boost::filesystem::remove_all(delPath,ec);
 					boost::this_thread::sleep(boost::posix_time::milliseconds(100));
 
-					char c[MAX_PATH] = { 0 };
+					char c[2*MAX_PATH] = { 0 };
 					string str_result = ec.message();
-					sprintf(c, "%s", str_result.c_str());
+					sprintf(c, "%s: %s", str_result.c_str(), str_path_delete.c_str());
 					ui.textLog->append(QString::fromLocal8Bit(c));
 					ui.textLog->update();
 				}
-				//catch (exception* e)
+				//catch (exception * e)
 				//{
 				//	ui.textLog->append(u8"删除文件失败: " + QString(str_path_delete.c_str()));
 				//	ui.textLog->append("Error Code");
@@ -297,6 +310,8 @@ void HistoryDIrTool::RunDelete()
 		SplitLine();
 		ui.textLog->append(QString(u8"删除操作已完成."));
 	}
+
+	isRunDeleteThread = false;
 }
 
 void HistoryDIrTool::onTimeOut()
